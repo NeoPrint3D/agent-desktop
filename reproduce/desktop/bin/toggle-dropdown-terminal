@@ -1,0 +1,34 @@
+#!/usr/bin/env python3
+"""Toggle a persistent, top-aligned i3 scratchpad terminal on the current output."""
+import fcntl
+import json
+import os
+from pathlib import Path
+import subprocess
+
+
+def ipc(command):
+    return subprocess.check_output(['i3-msg', command], text=True)
+
+
+def nodes(node, workspace=None):
+    if node.get('type') == 'workspace':
+        workspace = node['name']
+    yield node, workspace
+    for key in ('nodes', 'floating_nodes'):
+        for child in node.get(key, []):
+            yield from nodes(child, workspace)
+
+
+with (Path(os.environ.get('XDG_RUNTIME_DIR', '/tmp')) / 'i3-dropdown.lock').open('w') as lock:
+    fcntl.flock(lock, fcntl.LOCK_EX)
+    tree = json.loads(subprocess.check_output(['i3-msg', '-t', 'get_tree']))
+    terminal = next(((n, ws) for n, ws in nodes(tree)
+                     if n.get('window_properties', {}).get('instance') == 'i3-dropdown'), None)
+    if terminal and terminal[1] != '__i3_scratch':
+        ipc(f'[con_id={terminal[0]["id"]}] sticky disable, move scratchpad')
+    elif terminal:
+        ipc(f'[con_id={terminal[0]["id"]}] scratchpad show, resize set width 90 ppt height 45 ppt, move position 5 ppt 45 px, sticky enable, focus')
+    else:
+        # Launch through i3 so the session's DISPLAY/environment is inherited.
+        ipc('exec --no-startup-id xterm -name i3-dropdown -class DropdownTerminal -title "Drop-down Terminal" -fa "JetBrains Mono" -fs 12 -bg "#101923" -fg "#eceff4" -cr "#88c0d0" -sl 10000')

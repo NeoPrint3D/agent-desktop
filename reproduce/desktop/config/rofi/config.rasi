@@ -1,0 +1,28 @@
+configuration {
+    modi: "drun,window,run";
+    show-icons: true;
+    icon-theme: "Flat-Remix-Blue-Dark";
+    font: "JetBrains Mono 12";
+    display-drun: "Apps";
+    display-window: "Windows";
+    drun-display-format: "{name}";
+}
+@theme "default"
+* {
+    background: #101923;
+    foreground: #d8e2ee;
+    selected-normal-background: #304a61;
+    selected-normal-foreground: #ffffff;
+    normal-background: #101923;
+    normal-foreground: #d8e2ee;
+    alternate-normal-background: #16222f;
+    alternate-normal-foreground: #d8e2ee;
+    border-color: #88c0d0;
+    separatorcolor: #30455c;
+}
+window { width: 620px; border: 2px; padding: 18px; border-radius: 8px; }
+listview { lines: 8; fixed-height: true; }
+element { padding: 8px; border-radius: 4px; }
+element-icon { size: 28px; padding: 0 10px 0 0; }
+element-text { vertical-align: 0.5; }
+inputbar { padding: 8px; }

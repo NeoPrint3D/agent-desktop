@@ -1,0 +1,29 @@
+{
+  "voxl": {
+    "repository": "https://github.com/usafa-delogrand/better-voxl",
+    "revision": "9dd8544a8b20903286adc57eff29815363276110",
+    "patch": "patches/voxl-workstation.patch",
+    "build": "VOXL_SOURCE_DIR=/absolute/path/to/voxl ./reproduce/build-voxl.sh --apply",
+    "rust_toolchain": "1.99.1"
+  },
+  "public_browser": {
+    "repository": "https://github.com/usafa-delogrand/public-browser-harness.git",
+    "revision": "9346ee9c38704ff721c4984d5ad5ba8885988572",
+    "observed_package_version": "3.0.0",
+    "build": "npm ci && npm run build",
+    "note": "setup.sh builds this source and generates a fresh Agent profile/MCP entry. No source browser state or credentials exported; workstation.json is authoritative."
+  },
+  "pi": {
+    "package": "@earendil-works/pi-coding-agent",
+    "observed_version": "1.5.0",
+    "note": "setup.sh installs through node-tools/package-lock.json. A new MCP entry is generated; no source settings, providers, history or authentication copied."
+  },
+  "external_packages": {
+    "names": ["bruno", "codium", "google-chrome-stable", "cloudflared"],
+    "note": "setup.sh installs these using the signed repositories and primary fingerprints in workstation.json. No source APT auth, tunnel credentials or browser databases are imported."
+  },
+  "other_local_tools": {
+    "names": ["lightpanda", "aac", "burpsuitepro"],
+    "note": "Inventory/checklist only, not portable artifacts. Verify origin, version, checksum and licensing before installing. Proprietary software and licenses must be obtained legitimately, not copied from this machine."
+  }
+}

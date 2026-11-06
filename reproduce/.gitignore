@@ -1,0 +1,6 @@
+# Machine inventories and private build inputs require review before distribution.
+/inventory*/
+/private/
+/output/
+__pycache__/
+*.pyc

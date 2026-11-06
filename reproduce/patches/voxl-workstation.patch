@@ -1,0 +1,108 @@
+diff --git a/src/screen.rs b/src/screen.rs
+index 963e262..e9e39f2 100644
+--- a/src/screen.rs
++++ b/src/screen.rs
+@@ -15,9 +15,14 @@ use x11rb::rust_connection::RustConnection;
+ pub const MIN: (u32, u32) = (640, 480);
+ 
+ /// A size the screen can take: within [MIN, max], width a multiple of 8 and height
+-/// even (4:2:0 video), rounding down.
++/// even (4:2:0 video), rounding down. If a screen's maximum is below MIN, use
++/// that smaller maximum as the lower bound too.
+ pub fn fit(w: u32, h: u32, max: (u32, u32)) -> (u32, u32) {
+-    (w.clamp(MIN.0, max.0) & !7, h.clamp(MIN.1, max.1) & !1)
++    // clamp panics when min > max; small X screens must not crash the server.
++    (
++        w.clamp(MIN.0.min(max.0), max.0) & !7,
++        h.clamp(MIN.1.min(max.1), max.1) & !1,
++    )
+ }
+ 
+ pub struct Screen {
+@@ -183,3 +188,30 @@ impl Screen {
+         Ok(())
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn fit_stays_within_min_and_max() {
++        let max = (2560, 1600);
++        assert_eq!(fit(1921, 1081, max), (1920, 1080));
++        assert_eq!(fit(100, 100, max), MIN);
++        assert_eq!(fit(9999, 9999, max), max);
++    }
++
++    #[test]
++    fn fit_handles_a_screen_smaller_than_min() {
++        assert_eq!(fit(1920, 1080, (800, 450)), (800, 450));
++        assert_eq!(fit(100, 100, (800, 450)), (640, 450));
++        assert_eq!(fit(1920, 1080, (600, 400)), (600, 400));
++        assert_eq!(fit(100, 100, (600, 1080)), (600, 480));
++    }
++
++    #[test]
++    fn fit_aligns_small_screen_limits_without_exceeding_them() {
++        assert_eq!(fit(1920, 1080, (601, 401)), (600, 400));
++        assert_eq!(fit(100, 100, (601, 401)), (600, 400));
++    }
++}
+diff --git a/test-background-trackpad.mjs b/test-background-trackpad.mjs
+index b862cc6..2d53fd1 100644
+--- a/test-background-trackpad.mjs
++++ b/test-background-trackpad.mjs
+@@ -22,7 +22,7 @@ try {
+  setupPointer({surface,kbd:new Element(),send:s=>sent.push(s),desk:{w:1920,h:1080},view:{zoom:1}},()=>{});
+  function p(target,type,x,y,id=1,pointerType='touch',button=0){const e=new Event(type,{cancelable:true});Object.assign(e,{clientX:x,clientY:y,pointerId:id,pointerType,button,buttons:type==='pointerup'?0:1});target.dispatchEvent(e);}
+  p(background,'pointerdown',100,20);p(background,'pointermove',140,30);p(background,'pointerup',140,30);
+- assert.deepEqual(captures.at(-1),['trackpad-space',1]);assert.ok(sent.includes('m,1114,578'));assert.ok(!sent.some(s=>s.startsWith('b,')),'blank swipe never starts a drag');
++ assert.deepEqual(captures.at(-1),['trackpad-space',1]);assert.ok(sent.includes('m,1728,732'));assert.ok(!sent.some(s=>s.startsWith('b,')),'blank swipe never starts a drag');
+  sent.length=0;p(background,'pointerdown',100,20);p(background,'pointerup',100,20);assert.deepEqual(sent,['b,1,1','b,1,0']);
+  sent.length=0;p(surface,'pointerdown',100,150);p(surface,'pointermove',140,170);p(surface,'pointerup',140,170);
+  assert.deepEqual(captures.at(-1),['surface',1]);assert.ok(sent.includes('m,480,240'));assert.ok(sent.includes('b,1,1')&&sent.includes('b,1,0'),'direct touch still drags on video');
+diff --git a/web/src/client/pointer.ts b/web/src/client/pointer.ts
+index f64b150..0a50e52 100644
+--- a/web/src/client/pointer.ts
++++ b/web/src/client/pointer.ts
+@@ -53,7 +53,9 @@ export function setupPointer(app: App, onInteract: () => void) {
+ 	}
+ 	function moveBy(dx: number, dy: number) {
+ 		const [x, y] = position || [app.desk.w / 2, app.desk.h / 2];
+-		const gain = precision ? Math.max(0.5, Math.min(1.4, deskPerPx() * 0.35)) : Math.max(1, deskPerPx() * 0.8);
++		// Scale gestures against the full remote desktop. The previous capped gain
++		// made short screen-space swipes cover only a small fraction of large desktops.
++		const gain = deskPerPx() * (precision ? 0.8 : 4);
+ 		emit(x + dx * gain, y + dy * gain);
+ 	}
+ 
+@@ -174,8 +176,8 @@ export function setupPointer(app: App, onInteract: () => void) {
+ 	const stickPanel = document.getElementById('joystick-panel')!;
+ 	const stickActions = document.getElementById('stick-actions')!;
+ 	for (const id of ['left-btn', 'right-btn', 'drag-btn', 'precision-btn']) stickActions.appendChild(document.getElementById(id)!);
+-	let precision = true;
+-	try { precision = localStorage.getItem('voxl-precision') !== 'fast'; } catch {}
++	let precision = false;
++	try { precision = localStorage.getItem('voxl-precision') === 'fine'; } catch {}
+ 	const precisionBtn = document.getElementById('precision-btn')!;
+ 	function updatePrecision() {
+ 		precisionBtn.classList.toggle('on', precision);
+diff --git a/web/src/client/video.ts b/web/src/client/video.ts
+index 9619769..87fb403 100644
+--- a/web/src/client/video.ts
++++ b/web/src/client/video.ts
+@@ -100,9 +100,11 @@ export function createVideo(
+ 		// Snap the height so every stripe boundary lands on a whole device pixel;
+ 		// otherwise the stacked stripe layers show hairline seams.
+ 		const q = dh / stripes.reduce((g, [y]) => gcd(g, y), dh);
++		// Width-first fit on every device. On portrait/narrow-height viewports the
++		// desktop may extend vertically; the existing pan behavior keeps it navigable.
+ 		const devH = Math.max(
+ 			q,
+-			Math.floor(((Math.min(vw / dw, vh / dh) || 1) * app.view.zoom * dh * dpr) / q) * q
++			Math.floor(((vw / dw || 1) * app.view.zoom * dh * dpr) / q) * q
+ 		);
+ 		app.view.scale = devH / dpr / dh;
+ 		app.surface.style.width = `${dw * app.view.scale}px`;

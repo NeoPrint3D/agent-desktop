@@ -1,0 +1,14 @@
+[Unit]
+Description=Voxl stream for the current desktop (loopback only)
+# Also stop the separate streaming unit when its headless X session is stopped.
+PartOf=workstation-headless.service
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/voxl/stream.env
+ExecStart=%h/.local/bin/voxl-launch
+Restart=on-failure
+RestartSec=3
+
+# Deliberately not enabled at boot: i3 imports its own X display/auth environment
+# then starts this service only when ~/.config/voxl/enable-stream exists.

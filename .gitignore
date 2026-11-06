@@ -1,0 +1,11 @@
+# Do not publish source-machine inventories, credentials or generated environments.
+/reproduce/inventory*/
+/reproduce/private/
+/reproduce/output/
+/reproduce/node-tools/node_modules/
+/private/
+/output/
+.venv/
+__pycache__/
+*.pyc
+*.log

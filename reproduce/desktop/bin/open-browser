@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Use the generated Agent profile when the full workstation recipe is installed.
+set -euo pipefail
+i3-msg 'workspace "2:web"' >/dev/null
+if [[ -e "$HOME/.config/workstation-rebuild/enable-browser" && -x "$HOME/.local/bin/open-chrome-harness" ]]; then
+  "$HOME/.local/bin/open-chrome-harness"
+  exec google-chrome-stable --user-data-dir="$HOME/.public-browser/harness/default/chrome-profile" --profile-directory="Profile 1" "$@"
+fi
+for browser in google-chrome-stable google-chrome chromium chromium-browser firefox-esr firefox; do
+  if command -v "$browser" >/dev/null; then
+    # This launcher does not expose a debugging port. Configure automation separately.
+    exec "$browser" "$@"
+  fi
+done
+printf 'Install a browser in the guest first. No browser profile has been imported.\n' >&2
+exit 1

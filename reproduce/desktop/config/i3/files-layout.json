@@ -1,0 +1,10 @@
+{
+  "type": "con", "layout": "tabbed", "percent": 0.40,
+  "marks": ["files-explorer"],
+  "nodes": [{"type": "con", "name": "Files pane", "marks": ["files-explorer-placeholder"], "swallows": [{"class": "^__voxl_layout_placeholder_never_match__$"}]}]
+}
+{
+  "type": "con", "layout": "tabbed", "percent": 0.60,
+  "marks": ["files-editors"],
+  "nodes": [{"type": "con", "name": "Editor pane", "marks": ["files-editor-placeholder"], "swallows": [{"class": "^__voxl_layout_placeholder_never_match__$"}]}]
+}

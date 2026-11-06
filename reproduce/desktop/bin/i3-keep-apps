@@ -1,0 +1,16 @@
+#!/bin/bash
+# Keep a terminal open. Chrome is supervised separately and may have no windows.
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/i3-keep-apps-${UID}-${DISPLAY//[^a-zA-Z0-9]/_}.lock"
+flock -n 9 || exit 0
+terminal_retry=0
+sleep 3
+while i3-msg -t get_version >/dev/null 2>&1; do
+    windows=$(wmctrl -lx) || { sleep 5; continue; }
+    now=$SECONDS
+    if ! grep -qiE '[[:space:]]qterminal\.qterminal[[:space:]]' <<< "$windows" && (( now >= terminal_retry )); then
+        qterminal </dev/null 9>&- &
+        terminal_retry=$((now + 30))
+    fi
+    @HOME@/.local/bin/i3-stream-layout --ensure 2>/dev/null || true
+    sleep 5
+done

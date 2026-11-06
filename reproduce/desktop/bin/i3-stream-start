@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Reusable native-X11 or Xvfb session startup. No fixed UID, home or display.
+set -u
+exec 9>"${XDG_RUNTIME_DIR:-/tmp}/i3-stream-start-${UID}.lock"
+flock -n 9 || exit 0
+xsetroot -solid '#101923'
+"$HOME/.local/bin/i3-stream-layout" --ensure || true
+# Preserve an existing desktop audio stack; start PulseAudio only if none is running.
+pactl info >/dev/null 2>&1 || pulseaudio --start || true
+systemctl --user import-environment DISPLAY XAUTHORITY >/dev/null 2>&1 || true
+if [[ -e "$HOME/.config/voxl/enable-stream" ]]; then
+    systemctl --user restart voxl-stream.service
+fi
+# The full workstation installer enables its dedicated, loopback-only Chrome harness.
+if [[ -e "$HOME/.config/workstation-rebuild/enable-browser" && -x "$HOME/.local/bin/open-chrome-harness" ]]; then
+    "$HOME/.local/bin/open-chrome-harness" &
+fi
+# Keep the lock for the lifetime of the bar; reloading i3 doesn't create duplicates.
+polybar stream &
+bar=$!
+trap 'kill "$bar" 2>/dev/null || true' EXIT
+trap 'exit' INT TERM
+wait "$bar"

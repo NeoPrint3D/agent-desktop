@@ -1,0 +1,140 @@
+#!/usr/bin/python3
+"""Sort workspaces and initialize the Files editor/explorer split without closing apps."""
+import fcntl
+import json
+import os
+import re
+from pathlib import Path
+import subprocess
+import sys
+
+RESET = '--reset' in sys.argv
+TERMINALS = {'qterminal', 'xfce4-terminal', 'xterm', 'uxterm', 'alacritty',
+             'kitty', 'gnome-terminal', 'konsole'}
+BROWSERS = {'google-chrome', 'google-chrome-unstable', 'chromium',
+            'chromium-browser', 'firefox', 'firefox-esr', 'brave-browser'}
+EDITORS = {'geany', 'vscodium', 'codium', 'codeium', 'windsurf', 'code', 'code-oss', 'mousepad', 'com.visualstudio.codeoss'}
+FILES_WS = '3:files'
+# Share the i3 assignment list so the watchdog cannot undo file-app routing.
+CONFIG = Path.home() / '.config/i3/config'
+FILE_APPS = re.compile(
+    r'^(?:' + next(line.split(None, 2)[2] for line in CONFIG.read_text().splitlines()
+                   if line.startswith('set $fileapps ')) + r')$', re.IGNORECASE)
+LAYOUT = Path.home() / '.config/i3/files-layout.json'
+MARKS = ('files-editors', 'files-explorer')
+
+
+def command(message):
+    result = subprocess.run(['i3-msg', message], capture_output=True, text=True, check=True)
+    replies = json.loads(result.stdout)
+    if any(not item.get('success') for item in replies):
+        raise RuntimeError(result.stdout)
+
+
+def tree():
+    return json.loads(subprocess.check_output(['i3-msg', '-t', 'get_tree']))
+
+
+def all_nodes(node):
+    yield node
+    for key in ('nodes', 'floating_nodes'):
+        for child in node.get(key, []):
+            yield from all_nodes(child)
+
+
+def windows(node, workspace=None):
+    if node.get('type') == 'workspace':
+        workspace = node['name']
+    if node.get('window'):
+        if node.get('swallows'):
+            return
+        if node.get('floating') in ('auto_on', 'user_on') or node.get('window_type') == 'dialog':
+            return
+        yield node, workspace
+    for child in node.get('nodes', []):
+        yield from windows(child, workspace)
+
+
+def target_for(cls):
+    return ('1:term' if cls in TERMINALS else
+            '2:web' if cls in BROWSERS else
+            FILES_WS if FILE_APPS.fullmatch(cls) else '4:misc')
+
+
+def cls_of(node):
+    return (node.get('window_properties', {}).get('class') or '').lower()
+
+
+def contains(parent, con_id):
+    return any(n['id'] == con_id for n in all_nodes(parent))
+
+
+def ensure_files_layout(snapshot):
+    workspace = next((n for n in all_nodes(snapshot)
+                      if n.get('type') == 'workspace' and n.get('name') == FILES_WS), None)
+    if not workspace:
+        return
+    apps = [n for n, ws in windows(workspace) if ws == FILES_WS]
+    editors = [n for n in apps if cls_of(n) in EDITORS]
+    explorers = [n for n in apps if cls_of(n) == 'thunar']
+    # With only one category, let it use the whole workspace. No fake app is launched.
+    if not editors or not explorers:
+        return
+    groups = {mark: next((n for n in all_nodes(workspace) if mark in n.get('marks', [])), None)
+              for mark in MARKS}
+    rebuild = RESET or any(group is None or group.get('window') for group in groups.values())
+    focused = next((n['id'] for n in all_nodes(snapshot) if n.get('focused')), None)
+    try:
+        if rebuild:
+            for mark in MARKS:
+                command(f'[con_mark="^{mark}$"] unmark {mark}')
+            # append_layout requires the destination focused. Real windows are moved
+            # into marked groups, then only our own placeholders are removed.
+            command(f'workspace "{FILES_WS}"; [con_id={workspace["id"]}] focus; layout splith; append_layout "{LAYOUT}"')
+            current = tree()
+            # i3 restores marks on placeholder leaves, but not always on split
+            # containers. Mark each placeholder's parent explicitly after loading.
+            for mark, placeholder in zip(MARKS, ('files-editor-placeholder', 'files-explorer-placeholder')):
+                parent = next(n for n in all_nodes(current)
+                              if any(placeholder in child.get('marks', []) for child in n.get('nodes', [])))
+                command(f'[con_id={parent["id"]}] mark --add {mark}')
+            current = tree()
+            groups = {mark: next(n for n in all_nodes(current) if mark in n.get('marks', [])) for mark in MARKS}
+        for mark, members in (('files-editors', editors), ('files-explorer', explorers)):
+            for node in members:
+                if rebuild or not contains(groups[mark], node['id']):
+                    command(f'[con_id={node["id"]}] move container to mark {mark}')
+        if rebuild:
+            for mark in ('files-editor-placeholder', 'files-explorer-placeholder'):
+                command(f'[con_mark="^{mark}$"] kill')
+            command('[con_mark="^files-editors$"] resize set width 60 ppt')
+    finally:
+        # Never steal the user's workspace while the watchdog maintains the layout.
+        if focused and any(n['id'] == focused for n in all_nodes(tree())):
+            command(f'[con_id={focused}] focus')
+
+
+def main():
+    runtime = Path(os.environ.get('XDG_RUNTIME_DIR', '/tmp'))
+    with (runtime / f'i3-stream-layout-{os.getuid()}.lock').open('w') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return
+        snapshot = tree()
+        for node, workspace in windows(snapshot):
+            if not workspace or workspace.startswith('__'):
+                continue
+            target = target_for(cls_of(node))
+            if workspace != target:
+                command(f'[con_id={node["id"]}] move container to workspace "{target}"')
+        ensure_files_layout(tree())
+        if RESET:
+            focused = next((n['id'] for n in all_nodes(tree()) if n.get('focused')), None)
+            command('[workspace="^2:web$"] layout tabbed; [workspace="^1:term$"] layout tabbed')
+            if focused:
+                command(f'[con_id={focused}] focus')
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,24 @@
+# Reviewed application selection from source apt-manual.list, excluding base/LXC internals.
+# Included by the one-command setup, together with baseline and security metapackages.
+btop
+burpsuite
+geany
+geany-plugins
+gh
+ghidra
+gpg
+kali-desktop-xfce
+kali-linux-headless
+lazygit
+lightdm
+links
+neovim
+net-tools
+openjdk-21-jre
+openssh-client
+ranger
+suckless-tools
+vim
+wget
+wireshark
+zenity

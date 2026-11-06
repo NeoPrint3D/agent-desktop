@@ -1,0 +1,4 @@
+#!/bin/sh
+# Explicit workspace name avoids variable expansion and accidental new workspaces.
+i3-msg 'workspace "1:term"; layout tabbed' >/dev/null || exit 1
+exec qterminal

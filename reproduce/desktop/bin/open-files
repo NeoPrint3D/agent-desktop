@@ -1,0 +1,7 @@
+#!/bin/sh
+# Open the persistent desktop file manager on its own workspace.
+i3-msg 'workspace "3:files"' >/dev/null 2>&1 || true
+if [ "$#" -eq 0 ]; then
+    set -- "$HOME"
+fi
+exec thunar "$@"

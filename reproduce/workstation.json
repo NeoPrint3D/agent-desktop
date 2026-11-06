@@ -1,0 +1,105 @@
+{
+  "schema": 1,
+  "architecture": "amd64",
+  "apt_lists": ["packages.list", "security-tools.list", "applications.list"],
+  "external_packages": ["google-chrome-stable", "codium", "cloudflared", "bruno", "gh"],
+  "repositories": [
+    {
+      "name": "github-cli",
+      "fingerprints": ["2C6106201985B60E6C7AC87323F3D4EA75716059", "7F38BBB59D064DBCB3D84D725612B36462313325"],
+      "key_url": "https://cli.github.com/packages/githubcli-archive-keyring.gpg",
+      "url": "https://cli.github.com/packages",
+      "suite": "stable",
+      "components": "main"
+    },
+    {
+      "name": "google-chrome",
+      "fingerprints": ["EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796"],
+      "key_url": "https://dl.google.com/linux/linux_signing_key.pub",
+      "url": "https://dl.google.com/linux/chrome/deb/",
+      "suite": "stable",
+      "components": "main"
+    },
+    {
+      "name": "vscodium",
+      "fingerprints": ["1302DE60231889FE1EBACADC54678CF75A278D9C"],
+      "key_url": "https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg",
+      "url": "https://download.vscodium.com/debs",
+      "suite": "vscodium",
+      "components": "main"
+    },
+    {
+      "name": "cloudflared",
+      "fingerprints": ["CC94B39C77AE7342A68B89628A682D308D4E5E73"],
+      "key_url": "https://pkg.cloudflare.com/cloudflare-main.gpg",
+      "url": "https://pkg.cloudflare.com/cloudflared",
+      "suite": "any",
+      "components": "main"
+    },
+    {
+      "name": "bruno",
+      "fingerprints": ["E598552E09C999055FEFA7159FA6017ECABE0266"],
+      "key_url": "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x9FA6017ECABE0266",
+      "url": "http://debian.usebruno.com/",
+      "suite": "bruno",
+      "components": "stable"
+    }
+  ],
+  "sources": {
+    "voxl": {
+      "url": "https://github.com/usafa-delogrand/better-voxl.git",
+      "commit": "9dd8544a8b20903286adc57eff29815363276110",
+      "patch": "patches/voxl-workstation.patch"
+    },
+    "public-browser": {
+      "url": "https://github.com/usafa-delogrand/public-browser-harness.git",
+      "commit": "9346ee9c38704ff721c4984d5ad5ba8885988572"
+    }
+  },
+  "artifacts": [
+    {
+      "name": "aac",
+      "version": "0.11.0",
+      "url": "https://github.com/bitwarden/agent-access/releases/download/v0.11.0/aac-linux-x86_64.tar.gz",
+      "sha256": "a05b35bcc2cb9c87bc32c2ffaf83a1e8f29ac32590e609621f92e8b94d86e368",
+      "archive_member": "aac",
+      "binary_sha256": "53b86dab86426d0e9a86aea9d189fd296ddf92aac4e369631a046d35f887d456",
+      "version_args": ["--version"],
+      "version_output": "aac 0.11.0 (3b000d15af71be5ddcf8893b099f3a66d386be9d)"
+    },
+    {
+      "name": "lightpanda",
+      "version": "1.0.2",
+      "url": "https://github.com/lightpanda-io/browser/releases/download/1.0.2/lightpanda-x86_64-linux",
+      "sha256": "ae7d01d261efb9e480e18ce3424533332883863bcf70b12a4321b5733f37e19e",
+      "version_args": ["version"]
+    }
+  ],
+  "node_tools_lock": "node-tools/package-lock.json",
+  "python_tools_lock": "python-tools.requirements.txt",
+  "editor_extensions": ["PKief.material-icon-theme@5.40.0", "zhuangtongfa.material-theme@3.20.6"],
+  "chrome": {
+    "profiles": [
+      {"directory": "Default", "name": "Your Chrome"},
+      {"directory": "Profile 1", "name": "Agent"}
+    ],
+    "extensions": [
+      {"id": "cmbndhnoonmghfofefkcccljbkdpamhi", "name": "Hack-Tools", "observed_version": "0.5.0"},
+      {"id": "ddkjiahejlhfcafbddmgiahcphecmpfh", "name": "uBlock Origin Lite", "observed_version": "2026.1103.1743"},
+      {"id": "eimadpbcbfnmbkopoojfekhnkhdbieeh", "name": "Dark Reader", "observed_version": "4.9.134"},
+      {"id": "gncnbkghencmkfgeepfaonmegemakcol", "name": "d3coder", "observed_version": "5.1.1"},
+      {"id": "gppongmhjkpfnbhagpmjfkannfbllamg", "name": "Wappalyzer - Technology profiler", "observed_version": "6.12.8"},
+      {"id": "pfmipeldmapjkkkdbbfobganlgjcbdcj", "name": "Mod Header", "observed_version": "1.0.8"},
+      {"id": "pfnededegaaopdmhkdmcofjmoldfiped", "name": "Proxy SwitchyOmega 3 (ZeroOmega)", "observed_version": "3.5.2"}
+    ]
+  },
+  "remaining_gaps": [
+    "Clean Kali VM end-to-end test not yet performed.",
+    "APT/vendor packages follow signed current repositories, not an archived snapshot; Chrome extensions install current Store versions. Node tools have a transitive integrity lock; uv and binary artifacts have cryptographic hashes.",
+    "Chrome managed extension policy applies to all Chrome profiles on the target, not only Agent; settings/proxy accounts are not copied.",
+    "Licensed Burp Pro still needs a user-supplied, legitimately obtained installer and activation; Kali Burp Community is included. No vault/agent-access connection state is copied.",
+    "Agent provider accounts, GitHub, SSH/GPG, VPN/tunnels and browser sites need fresh authentication.",
+    "No existing documents, projects, bookmarks, extension local storage or shell/plugin configuration is imported.",
+    "HTTPS publishing requires target DNS, certificates, firewall and an explicit network-access decision; no public listener is configured by this kit."
+  ]
+}

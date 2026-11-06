@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+: "${DISPLAY:?Start this service from an X11/i3 session}"
+: "${VOXL_PASSWORD:?Create a fresh stream.env on the target first}"
+export PATH="$HOME/.cargo/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
+# Never start with the old machine's password, token or unrestricted '/' file root.
+exec "$HOME/.local/bin/voxl" --addr 127.0.0.1 --port 6901 \
+  --enable-basic-auth true --files-root "$HOME" --upload-dir Downloads --max-upload-mb 0
